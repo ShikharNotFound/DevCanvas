@@ -3,10 +3,17 @@ myenv/
 
 # Environment variables
 .env
+**/.env
 
 # Python cache
 __pycache__/
 *.pyc
+
+# Generated JavaScript dependencies and build output
+**/node_modules/
+**/build/
+**/dist/
+npm-debug.log*
 
 # OS files
 .DS_Store

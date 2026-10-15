@@ -1,0 +1,82 @@
+{
+  "files": [
+    {
+      "path": "client/src/components/Login.js",
+      "purpose": "User login component"
+    },
+    {
+      "path": "client/src/components/Register.js",
+      "purpose": "User registration component"
+    },
+    {
+      "path": "client/src/components/GameSession.js",
+      "purpose": "Game session component"
+    },
+    {
+      "path": "client/src/components/DiceRoll.js",
+      "purpose": "Dice roll component"
+    },
+    {
+      "path": "client/src/components/PlayerList.js",
+      "purpose": "Player list component"
+    },
+    {
+      "path": "client/src/App.js",
+      "purpose": "Main application component"
+    },
+    {
+      "path": "client/src/index.js",
+      "purpose": "Entry point for the React application"
+    },
+    {
+      "path": "client/package.json",
+      "purpose": "Dependencies and scripts for the React application"
+    },
+    {
+      "path": "server/controllers/userController.js",
+      "purpose": "User-related API endpoints"
+    },
+    {
+      "path": "server/controllers/gameSessionController.js",
+      "purpose": "Game session-related API endpoints"
+    },
+    {
+      "path": "server/models/User.js",
+      "purpose": "User model for MongoDB"
+    },
+    {
+      "path": "server/models/GameSession.js",
+      "purpose": "Game session model for MongoDB"
+    },
+    {
+      "path": "server/routes/userRoutes.js",
+      "purpose": "User-related API routes"
+    },
+    {
+      "path": "server/routes/gameSessionRoutes.js",
+      "purpose": "Game session-related API routes"
+    },
+    {
+      "path": "server/utils/auth.js",
+      "purpose": "Authentication utility functions"
+    },
+    {
+      "path": "server/app.js",
+      "purpose": "Main server application"
+    },
+    {
+      "path": "server/server.js",
+      "purpose": "Entry point for the Node.js server"
+    },
+    {
+      "path": "server/package.json",
+      "purpose": "Dependencies and scripts for the Node.js server"
+    },
+    {
+      "path": ".env.example",
+      "purpose": "Example environment variables file"
+    }
+  ],
+  "assumptions": [],
+  "warnings": []
+}

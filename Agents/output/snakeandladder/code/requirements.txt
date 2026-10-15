@@ -1,0 +1,12 @@
+This is a Node.js project; Python requirements.txt is not used.
+
+Prerequisites:
+- Node.js 16 or newer
+- npm 8 or newer
+- MongoDB 5 or newer (local or hosted)
+
+Install dependencies from the manifests:
+- cd server && npm install
+- cd client && npm install
+
+Before starting the server, copy .env.example to server/.env and set JWT_SECRET.

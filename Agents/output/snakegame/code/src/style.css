@@ -1,0 +1,10 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #090f1c; color: #f8fafc; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; overflow: hidden; }
+canvas { display: block; width: min(80vmin, 400px); height: min(80vmin, 400px); border: 2px solid #334155; border-radius: 8px; }
+.overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgb(2 6 23 / 72%); }
+.overlay[hidden] { display: none; }
+.overlay-content { min-width: 250px; padding: 2rem; text-align: center; background: #172033; border: 1px solid #334155; border-radius: 14px; }
+.overlay h1 { margin-top: 0; }
+.overlay button { padding: .7rem 1.3rem; color: #0f172a; background: #a3e635; border: 0; border-radius: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+

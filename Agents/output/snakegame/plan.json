@@ -1,0 +1,78 @@
+{
+  "files": [
+    {
+      "path": "index.html",
+      "purpose": "main HTML page"
+    },
+    {
+      "path": "package.json",
+      "purpose": "project dependencies and scripts"
+    },
+    {
+      "path": "tsconfig.json",
+      "purpose": "TypeScript configuration"
+    },
+    {
+      "path": "vite.config.ts",
+      "purpose": "Vite build configuration"
+    },
+    {
+      "path": "public/favicon.ico",
+      "purpose": "favicon for the application"
+    },
+    {
+      "path": "public/robots.txt",
+      "purpose": "robots.txt file for SEO"
+    },
+    {
+      "path": "src/main.ts",
+      "purpose": "entry point of the application"
+    },
+    {
+      "path": "src/style.css",
+      "purpose": "global CSS styles"
+    },
+    {
+      "path": "src/config/constants.ts",
+      "purpose": "configuration constants"
+    },
+    {
+      "path": "src/audio/sound-effects.ts",
+      "purpose": "sound effects implementation"
+    },
+    {
+      "path": "src/engine/loop.ts",
+      "purpose": "game loop implementation"
+    },
+    {
+      "path": "src/engine/input.ts",
+      "purpose": "input handling implementation"
+    },
+    {
+      "path": "src/engine/state.ts",
+      "purpose": "game state management"
+    },
+    {
+      "path": "src/entities/snake.ts",
+      "purpose": "snake entity implementation"
+    },
+    {
+      "path": "src/entities/food.ts",
+      "purpose": "food entity implementation"
+    },
+    {
+      "path": "src/render/canvas-renderer.ts",
+      "purpose": "canvas rendering implementation"
+    },
+    {
+      "path": "src/types/index.ts",
+      "purpose": "type definitions"
+    },
+    {
+      "path": "src/ui/overlay.ts",
+      "purpose": "game overlay implementation"
+    }
+  ],
+  "assumptions": [],
+  "warnings": []
+}
