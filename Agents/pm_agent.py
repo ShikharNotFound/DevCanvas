@@ -63,7 +63,6 @@ async def call_llm(system_prompt: str, user_prompt: str) -> str:
 
 
 async def run_pm_agent(project_description: str) -> str:
-    """The PM agent: description in, PRD out."""
     print("[PM Agent] Received:", project_description[:60], "...")
     print("[PM Agent] Calling LLM...")
 
@@ -76,10 +75,7 @@ async def run_pm_agent(project_description: str) -> str:
     return prd
 
 
-
-
 def get_user_input() -> str:
-    """Ask the user for a project description."""
     print("=" * 30)
     print("  DevCanvas — PM Agent")
     print("=" * 30)
