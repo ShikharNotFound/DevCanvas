@@ -48,7 +48,6 @@ Example for a browser snake game:
 {"files": [{"path": "index.html", "purpose": "main HTML page"}, {"path": "styles.css", "purpose": "CSS styles"}, {"path": "script.js", "purpose": "game logic"}], "assumptions": [], "warnings": []}
 """
 
-
 async def plan_developer_agent(sdd: str) -> dict:
     print("[Developer] Phase 1 : Planning file manifest...")
     llm = get_llm("developer")
@@ -81,6 +80,8 @@ async def plan_developer_agent(sdd: str) -> dict:
         )
 
     return parsed
+
+
 
 
 # ─────────────────────────────────────────────────────────────
@@ -157,6 +158,9 @@ def review_plan(plan: dict) -> dict | str | None:
             print("  Unknown command.")
 
 
+
+
+
 # ─────────────────────────────────────────────────────────────
 # PHASE 2 — EXECUTE  (short prompt, one file at a time)
 # ─────────────────────────────────────────────────────────────
@@ -178,7 +182,6 @@ Rules:
 - Use imports that exist in the file manifest.
 - Match naming and conventions used elsewhere in the project.
 """
-
 
 async def generate_file(sdd: str, manifest: dict, target: dict, notes: list) -> str:
     llm = get_llm("developer")
@@ -229,6 +232,9 @@ Return only the raw file contents.
     return content
 
 
+
+
+
 # ─────────────────────────────────────────────────────────────
 # PHASE 3 — VALIDATE
 # ─────────────────────────────────────────────────────────────
@@ -237,7 +243,6 @@ SECRET_PATTERNS = [
     "-----BEGIN PRIVATE KEY-----",
     "-----BEGIN RSA PRIVATE KEY-----",
 ]
-
 
 def validate_file(path: str, content: str) -> list[str]:
     issues = []
@@ -266,6 +271,8 @@ def validate_file(path: str, content: str) -> list[str]:
     return issues
 
 
+
+
 # ─────────────────────────────────────────────────────────────
 # Save
 # ─────────────────────────────────────────────────────────────
@@ -278,6 +285,9 @@ def save_generated_files(project_slug: str, files: list[dict]) -> Path:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(f["content"], encoding="utf-8")
     return code_dir
+
+
+
 
 
 # ─────────────────────────────────────────────────────────────
@@ -301,7 +311,6 @@ def pick_project() -> str | None:
         return projects[idx] if 0 <= idx < len(projects) else default
     except ValueError:
         return default
-
 
 async def review_files(
     project_slug: str,
@@ -404,7 +413,6 @@ async def review_files(
         else:
             print("  Unknown command.")
 
-
 async def main():
     project_slug = pick_project()
     if not project_slug:
@@ -492,6 +500,7 @@ async def main():
 
     code_dir = save_generated_files(project_slug, files_out)
     print(f"\n[Developer] Saved {len(files_out)} files to: {code_dir}\n")
+
 
 
 if __name__ == "__main__":
