@@ -1,11 +1,15 @@
-import os
 import asyncio
+from functools import lru_cache
+
 from dotenv import load_dotenv
+
 from output_store import list_projects, read_project_file, save_text
-from llm  import get_llm
+from llm import get_llm
 
 load_dotenv()
 
+
+MAX_PRD_CHARS = 20_000
 
 ARCHITECT_SYSTEM_PROMPT = """
 You are a senior software architect. Given a Product Requirements Document (PRD), produce a System Design Document (SDD) in Markdown.
@@ -65,63 +69,34 @@ Remove: prose, repetition, examples, marketing language.
 Return only the compressed brief.
 """
 
-async def compress_prd(prd: str) -> str:
-    llm = get_llm("architect")
-    return await llm.complete(
-        system=SUMMARIZE_PROMPT,
-        user=prd,
-        temperature=0.1,
-    )
 
-
-
-
-
-async def call_llm(system_prompt: str, user_prompt: str) -> str:
-    llm = get_llm("architect")
-    return await llm.complete(
-        system=system_prompt,
-        user=user_prompt,
-        temperature=0.2,
-    )
+@lru_cache(maxsize=1)
+def _get_architect_llm():
+    """Reuse a single LLM client across compression + generation calls."""
+    return get_llm("architect")
 
 
 async def run_architect_agent(prd: str) -> str:
-    print("[Architect Agent] Received PRD (", len(prd), "chars )")
+    llm = _get_architect_llm()
+    print(f"[Architect Agent] Received PRD ({len(prd)} chars)")
+
+    if len(prd) > MAX_PRD_CHARS:
+        original_len = len(prd)
+        print("[Architect Agent] PRD too large — compressing...")
+        prd = await llm.complete(
+            system=SUMMARIZE_PROMPT,
+            user=prd,
+            temperature=0.1,
+        )
+        print(f"[Architect Agent] Compressed {original_len} → {len(prd)} chars")
+
     print("[Architect Agent] Calling LLM...\n")
-    if len(prd) > 20000:  
-            print("[Architect Agent] PRD too large — compressing...")
-            prd = await compress_prd(prd)
-
-
-    sdd = await call_llm(
-        system_prompt=ARCHITECT_SYSTEM_PROMPT,
-        user_prompt=prd,
+    sdd = await llm.complete(
+        system=ARCHITECT_SYSTEM_PROMPT,
+        user=prd,
+        temperature=0.2,
     )
-
     return sdd
-
-
-
-def get_user_input() -> str:
-    print("=" * 30)
-    print("  DevCanvas — Architect Agent")
-    print("=" * 30)
-    print("Paste the PRD below.")
-    print("When finished, type END on its own line and press Enter.")
-    print()
-
-    lines = []
-    while True:
-        try:
-            line = input()
-        except EOFError:
-            break
-        if line.strip() == "END":
-            break
-        lines.append(line)
-
-    return "\n".join(lines).strip()
 
 
 def pick_project() -> str | None:
