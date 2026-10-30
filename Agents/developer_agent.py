@@ -6,9 +6,12 @@ Produces a file manifest for human approval.
 Then generates code file-by-file.
 Saves to output/<project>/code/.
 """
+
 import json
 import asyncio
+from functools import lru_cache
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 from llm import get_llm
@@ -20,9 +23,50 @@ from output_store import (
 
 load_dotenv()
 
+# ── Tunables ──
+MAX_SDD_CHARS_FOR_PLAN = 20_000
+MAX_SDD_CHARS_FOR_FILE = 12_000
+DEBUG_PREVIEW_CHARS = 300
+
 
 # ─────────────────────────────────────────────────────────────
-# PHASE 1 — PLAN  (short prompt, works on any model)
+# Shared helpers
+# ─────────────────────────────────────────────────────────────
+@lru_cache(maxsize=1)
+def _get_developer_llm():
+    """One shared LLM client for the whole run (plan + all file generations)."""
+    return get_llm("developer")
+
+
+def strip_fences(raw: str) -> str:
+    """
+    Strip markdown code fences if the model wrapped its output.
+
+    Handles:
+        ```json\\n{...}\\n```       → {...}
+        ```python\\nprint(1)\\n```  → print(1)
+        (no fence)                 → unchanged
+    """
+    content = raw.strip()
+    if not content.startswith("```"):
+        return content
+
+    # Drop the opening fence line (``` or ```lang)
+    nl = content.find("\n")
+    if nl == -1:
+        # Degenerate case: ```something``` on one line
+        return content.strip("`").strip()
+    content = content[nl + 1:]
+
+    # Drop the closing fence
+    if content.rstrip().endswith("```"):
+        content = content.rstrip()[:-3].rstrip()
+
+    return content
+
+
+# ─────────────────────────────────────────────────────────────
+# PHASE 1 — PLAN
 # ─────────────────────────────────────────────────────────────
 PLAN_SYSTEM_PROMPT = """
 You are a senior developer. Given a System Design Document (SDD), list the files needed to implement it.
@@ -48,14 +92,15 @@ Example for a browser snake game:
 {"files": [{"path": "index.html", "purpose": "main HTML page"}, {"path": "styles.css", "purpose": "CSS styles"}, {"path": "script.js", "purpose": "game logic"}], "assumptions": [], "warnings": []}
 """
 
+
 async def plan_developer_agent(sdd: str) -> dict:
     print("[Developer] Phase 1 : Planning file manifest...")
-    llm = get_llm("developer")
+    llm = _get_developer_llm()
 
     # Truncate long SDDs — local models choke on huge prompts
-    if len(sdd) > 20000:
-        print(f"  [note] SDD is {len(sdd)} chars, truncating to 20000 for plan phase")
-        sdd = sdd[:20000] + "\n\n[... SDD truncated for plan phase ...]"
+    if len(sdd) > MAX_SDD_CHARS_FOR_PLAN:
+        print(f"  [note] SDD is {len(sdd)} chars, truncating to {MAX_SDD_CHARS_FOR_PLAN} for plan phase")
+        sdd = sdd[:MAX_SDD_CHARS_FOR_PLAN] + "\n\n[... SDD truncated for plan phase ...]"
 
     raw = await llm.complete(
         system=PLAN_SYSTEM_PROMPT,
@@ -63,25 +108,17 @@ async def plan_developer_agent(sdd: str) -> dict:
         temperature=0.2,
     )
 
-    print(f"  [debug] Response preview: {raw[:300]!r}")
+    print(f"  [debug] Response preview: {raw[:DEBUG_PREVIEW_CHARS]!r}")
 
-    # Strip markdown fences if present
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`")
-        if cleaned.lower().startswith("json"):
-            cleaned = cleaned[4:]
-        cleaned = cleaned.strip()
-
+    cleaned = strip_fences(raw)
     parsed = json.loads(cleaned)
+
     if "files" not in parsed or not isinstance(parsed["files"], list):
         raise ValueError(
             f"Plan missing 'files' array. Got keys: {list(parsed.keys())}"
         )
 
     return parsed
-
-
 
 
 # ─────────────────────────────────────────────────────────────
@@ -158,11 +195,8 @@ def review_plan(plan: dict) -> dict | str | None:
             print("  Unknown command.")
 
 
-
-
-
 # ─────────────────────────────────────────────────────────────
-# PHASE 2 — EXECUTE  (short prompt, one file at a time)
+# PHASE 2 — EXECUTE
 # ─────────────────────────────────────────────────────────────
 FILE_SYSTEM_PROMPT = """
 You are a senior developer. Write ONE file for a project.
@@ -183,11 +217,12 @@ Rules:
 - Match naming and conventions used elsewhere in the project.
 """
 
+
 async def generate_file(sdd: str, manifest: dict, target: dict, notes: list) -> str:
-    llm = get_llm("developer")
+    llm = _get_developer_llm()
 
     # Keep SDD excerpt small so local models stay coherent
-    sdd_excerpt = sdd[:12000] if len(sdd) > 12000 else sdd
+    sdd_excerpt = sdd[:MAX_SDD_CHARS_FOR_FILE] if len(sdd) > MAX_SDD_CHARS_FOR_FILE else sdd
 
     manifest_summary = "\n".join(
         f"  - {f['path']} : {f.get('purpose', '')}"
@@ -213,26 +248,12 @@ Return only the raw file contents.
 """
 
     raw = await llm.complete(
-    system=FILE_SYSTEM_PROMPT,
-    user=user,
-    temperature=0.2,
+        system=FILE_SYSTEM_PROMPT,
+        user=user,
+        temperature=0.2,
     )
 
-    # Strip markdown fences if the model wrapped the file in them
-    content = raw.strip()
-    if content.startswith("```"):
-        # remove opening fence (```lang or just ```)
-        first_newline = content.find("\n")
-        if first_newline != -1:
-            content = content[first_newline + 1:]
-        # remove closing fence
-        if content.rstrip().endswith("```"):
-            content = content.rstrip()[:-3].rstrip()
-    
-    return content
-
-
-
+    return strip_fences(raw)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -243,6 +264,7 @@ SECRET_PATTERNS = [
     "-----BEGIN PRIVATE KEY-----",
     "-----BEGIN RSA PRIVATE KEY-----",
 ]
+
 
 def validate_file(path: str, content: str) -> list[str]:
     issues = []
@@ -271,8 +293,6 @@ def validate_file(path: str, content: str) -> list[str]:
     return issues
 
 
-
-
 # ─────────────────────────────────────────────────────────────
 # Save
 # ─────────────────────────────────────────────────────────────
@@ -285,9 +305,6 @@ def save_generated_files(project_slug: str, files: list[dict]) -> Path:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(f["content"], encoding="utf-8")
     return code_dir
-
-
-
 
 
 # ─────────────────────────────────────────────────────────────
@@ -311,6 +328,7 @@ def pick_project() -> str | None:
         return projects[idx] if 0 <= idx < len(projects) else default
     except ValueError:
         return default
+
 
 async def review_files(
     project_slug: str,
@@ -413,6 +431,7 @@ async def review_files(
         else:
             print("  Unknown command.")
 
+
 async def main():
     project_slug = pick_project()
     if not project_slug:
@@ -441,8 +460,19 @@ async def main():
             return
         if result == "__REPLAN__":
             notes = plan.get("notes", [])
-            augmented = sdd + "\n\nUSER NOTES:\n" + "\n".join(notes)
-            plan = await plan_developer_agent(augmented)
+            # Send the CURRENT plan so the model revises rather than starts over.
+            augmented = (
+                sdd
+                + "\n\nCURRENT PLAN (revise based on the notes below):\n"
+                + json.dumps({"files": plan.get("files", [])}, indent=2)
+                + "\n\nUSER NOTES:\n"
+                + ("\n".join(notes) if notes else "(none)")
+            )
+            new_plan = await plan_developer_agent(augmented)
+            # Notes are user intent — carry them forward even if the model drops them.
+            if notes and not new_plan.get("notes"):
+                new_plan["notes"] = notes
+            plan = new_plan
             continue
         plan = result
         break
@@ -469,6 +499,12 @@ async def main():
             content = await generate_file(sdd, plan, f, notes)
         except Exception as e:
             print(f"  ✗ Generation failed: {e}")
+            # Keep the file visible in review so the user can retry or drop it.
+            files_out.append({
+                "path": f["path"],
+                "content": "",
+                "issues": [f"generation failed: {str(e)[:120]}"],
+            })
             continue
 
         issues = validate_file(f["path"], content)
@@ -498,9 +534,13 @@ async def main():
         print("Cancelled — no files saved.")
         return
 
-    code_dir = save_generated_files(project_slug, files_out)
-    print(f"\n[Developer] Saved {len(files_out)} files to: {code_dir}\n")
+    try:
+        code_dir = save_generated_files(project_slug, files_out)
+    except OSError as e:
+        print(f"\n[!] Failed to save files: {e}\n")
+        return
 
+    print(f"\n[Developer] Saved {len(files_out)} files to: {code_dir}\n")
 
 
 if __name__ == "__main__":
