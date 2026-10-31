@@ -1,6 +1,6 @@
 import asyncio
 from dotenv import load_dotenv
-from output_store import slugify, save_text
+from output_store import save_text
 from llm import get_llm
 
 load_dotenv()
@@ -61,78 +61,16 @@ async def call_llm(system_prompt: str, user_prompt: str) -> str:
         temperature=0.3,
     )
 
-
-async def run_pm_agent(project_description: str) -> str:
-    print("[PM Agent] Received:", project_description[:60], "...")
-    print("[PM Agent] Calling LLM...")
-
-
-    #calls the actual function to call the llm and give it a description
+async def run_pm_agent(project_slug: str, project_description: str) -> str:
+    """Generates the PRD, saves it, and returns the path."""
+    print(f"[PM Agent] Received description for project: {project_slug}")
+    
     prd = await call_llm(
         system_prompt=PM_SYSTEM_PROMPT,
         user_prompt=project_description,
     )
 
-    print("[PM Agent] PRD generated.\n")
-    return prd
-
-
-def get_user_input() -> str:
-    print("=" * 30)
-    print("  DevCanvas — PM Agent")
-    print("=" * 30)
-    print("Describe the software you want to build.")
-    print("(Type your description and press Enter. Type 'quit' to exit.)")
-    print()
-
-
-    #simple input function and store it in the description variable
-    description = input("> ").strip()
-    return description
-
-
-def ask_project_name() -> str:
-    print("Project name (e.g. 'Foodie App'): ", end="")
-    name = input().strip()
-    if not name:
-        name = "untitled"
-
-    #slugify is the function in ouput_store.py and  returns a good name format ...it changes everything except 0-9,a-z,A-Z to '-' 
-    #basically it returns a clean name for a folder 
-    return slugify(name)
-
-
-async def main():
-    #asking for the name of the project 
-    project_slug = ask_project_name()
-    print(f"[PM Agent] Project: {project_slug}\n")
-
-
-
-    #add some descriptiion on the project 
-    description = get_user_input()
-
-    if not description:
-        print("\n[!] Empty description. Exiting.\n")
-        return
-
-
-    #try calling agent and print fail if it fails to return the agenet call
-    try:
-        prd = await run_pm_agent(description)
-    except Exception as e:
-        print(f"\n[!] PM agent failed: {e}\n")
-        return
-
-
-    #save the output in the folder with the given path ..........save_text function is already developed in another file
     saved_path = save_text(project_slug, "prd.md", prd)
-
-    print("=" * 60)
-    print(prd)
-    print("=" * 60)
-    print(f"\n[PM Agent] Saved PRD to: {saved_path}\n")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    print(f"[PM Agent] PRD saved to: {saved_path}")
+    
+    return str(saved_path)

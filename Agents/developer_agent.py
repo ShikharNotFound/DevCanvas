@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Functions from the files
 from llm import get_llm
 from output_store import get_project_dir, list_projects, read_project_file
 
@@ -51,6 +50,7 @@ Rules:
 - **ASSETS RULE: If the project needs icons, logos, or simple graphics, plan for `.svg` files. NEVER plan for `.png`, `.jpg`, or other binary files because you are a text model.**
 - Return only JSON. No markdown fences. No explanation.
 """
+
 FILE_PROMPT = """
 You are a senior developer. Write ONE file for a project.
 
@@ -67,9 +67,10 @@ CRITICAL FRAMEWORK RULES:
 - If writing React components, ensure all imported components actually exist and are exported correctly.
 - If writing FastAPI routes (Python), use `@app.get("/path")` decorators correctly.
 - Ensure that all functions and variables you import actually exist in the other files listed in the manifest.
-"""# ── Pure Utility Functions ──
+"""
+
+# ── Pure Utility Functions ──
 def strip_fences(text: str) -> str:
-    """Safely removes markdown fences if the LLM wrapped the whole file in them."""
     text = text.strip()
     if text.startswith("```") and text.endswith("```"):
         lines = text.splitlines()
@@ -78,13 +79,13 @@ def strip_fences(text: str) -> str:
     return text
 
 def sanitize_for_xml(text: str) -> str:
-    """Prevents Prompt Injection by neutralizing XML tags in the SDD."""
     return text.replace("<", "&lt;").replace(">", "&gt;")
 
 # ── The Fortified Agent ──
 class DeveloperAgent:
-    def __init__(self, project_slug: str):
+    def __init__(self, project_slug: str, auto_approve: bool = False):
         self.project_slug = project_slug
+        self.auto_approve = auto_approve
         self.project_dir = get_project_dir(project_slug)
         self.code_dir = self.project_dir / "code"
         self.llm = get_llm("developer")
@@ -96,7 +97,6 @@ class DeveloperAgent:
         self.lock_path = self.project_dir / ".agent.lock"
         self._lock_fd = None
 
-    # ── HOST SECURITY: THE LOCK ──
     def _acquire_lock(self) -> bool:
         try:
             fd = os.open(str(self.lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -105,7 +105,6 @@ class DeveloperAgent:
             return True
         except FileExistsError:
             print(f"[!] Lock file exists. Another agent might be running.")
-            print(f"[!] If you are sure no other process is running, delete: {self.lock_path}")
             return False
 
     def _release_lock(self):
@@ -117,7 +116,6 @@ class DeveloperAgent:
             except OSError:
                 pass
 
-    # ── THE LLM CONNECTION ──
     async def _ask_llm(self, system: str, user: str) -> str:
         for attempt in range(3):
             try:
@@ -129,7 +127,6 @@ class DeveloperAgent:
                 await asyncio.sleep(3)
         return ""
 
-    # ── APP SECURITY: THE SENTINEL ──
     def _validate_file(self, path: str, content: str) -> list[str]:
         issues = []
         if not content.strip():
@@ -164,7 +161,6 @@ class DeveloperAgent:
 
         return issues
 
-    # ── HOST SECURITY: THE SAFE WRITER ──
     def _safe_write(self, rel_path: str, content: str):
         try:
             target = (self.code_dir / rel_path).resolve()
@@ -187,7 +183,6 @@ class DeveloperAgent:
             if 'tmp_path' in locals() and os.path.exists(tmp_path):
                 os.remove(tmp_path)        
 
-    # ── PHASE 1: PLAN ──
     async def _phase_plan(self) -> bool:
         print("[Developer] Phase 1: Planning file manifest...")
         try:
@@ -197,7 +192,7 @@ class DeveloperAgent:
             return False
             
         if len(self.sdd) > MAX_SDD_CHARS:
-            print(f"  [note] SDD truncated to {MAX_SDD_CHARS} chars for LLM limits.")
+            print(f"  [note] SDD truncated to {MAX_SDD_CHARS} chars.")
             self.sdd = self.sdd[:MAX_SDD_CHARS]
             
         safe_sdd = sanitize_for_xml(self.sdd)
@@ -226,6 +221,11 @@ class DeveloperAgent:
             print("[!] Plan is empty. Nothing to generate.")
             return False
             
+        # BYPASS IF AUTO_APPROVE (for LangGraph)
+        if self.auto_approve:
+            print(f"  [auto-approve] Accepted {len(files)} files.")
+            return True
+            
         while True:
             print(f"\n{'='*60}\nPLAN — {len(files)} files\n{'='*60}")
             for i, f in enumerate(files, 1):
@@ -243,14 +243,13 @@ class DeveloperAgent:
                 except (ValueError, IndexError): 
                     print("  Invalid index.")
 
-    # ── PHASE 2: EXECUTE ──
     async def _phase_execute(self):
         print(f"\n[Developer] Phase 2: Generating {len(self.plan['files'])} files...")
         manifest_str = "\n".join(f"- {f['path']}" for f in self.plan["files"])
         safe_sdd = sanitize_for_xml(self.sdd)
         
         for i, target in enumerate(self.plan["files"], 1):
-            print(f"\n({i}/{len(self.plan['files'])}) Generating {target['path']}...")
+            print(f"({i}/{len(self.plan['files'])}) Generating {target['path']}...")
             
             user_prompt = f"""
 <SDD>
@@ -278,8 +277,12 @@ Purpose: {target.get('purpose', '')}
 
             self.files_out.append({"path": target["path"], "content": content, "issues": issues})
 
-    # ── CHECKPOINT 2 & SAVE ──
     async def _phase_review_files(self) -> bool:
+        # BYPASS IF AUTO_APPROVE (for LangGraph)
+        if self.auto_approve:
+            print(f"  [auto-approve] Saving {len(self.files_out)} files.")
+            return True
+            
         while True:
             print(f"\n{'='*60}\nREVIEW\n{'='*60}")
             for i, f in enumerate(self.files_out, 1):
@@ -335,7 +338,6 @@ Purpose: {target.get('purpose', '')}
         self._safe_write("../plan.json", json.dumps(self.plan, indent=2))
         print("[Developer] Done.\n")
 
-    # ── THE ORCHESTRATOR ──
     async def run(self):
         if not self._acquire_lock():
             return
@@ -351,7 +353,15 @@ Purpose: {target.get('purpose', '')}
         finally:
             self._release_lock()
 
-# ── Entry Point ──
+# ── LangGraph Wrapper ──
+async def run_developer_agent(project_slug: str) -> str:
+    """Wrapper function for LangGraph to call."""
+    # Set auto_approve=True so it doesn't pause the graph waiting for terminal input
+    agent = DeveloperAgent(project_slug, auto_approve=True)
+    await agent.run()
+    return str(agent.code_dir)
+
+# ── Standalone Entry Point (Kept for manual testing) ──
 if __name__ == "__main__":
     projects = list_projects()
     if not projects:
@@ -369,4 +379,5 @@ if __name__ == "__main__":
     except (ValueError, IndexError):
         slug = projects[0]
 
-    asyncio.run(DeveloperAgent(slug).run())
+    # When running standalone, we keep auto_approve=False so you can review the files!
+    asyncio.run(DeveloperAgent(slug, auto_approve=False).run())
