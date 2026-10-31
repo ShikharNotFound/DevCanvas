@@ -48,6 +48,7 @@ Rules:
 - Use paths from the SDD's file structure.
 - Include config files (.env.example).
 - Never include a real ".env" file.
+- **ASSETS RULE: If the project needs icons, logos, or simple graphics, plan for `.svg` files. NEVER plan for `.png`, `.jpg`, or other binary files because you are a text model.**
 - Return only JSON. No markdown fences. No explanation.
 """
 
@@ -61,8 +62,13 @@ You will receive:
 
 Return ONLY the raw file contents. No markdown fences. No explanations.
 No placeholders like "..." or "# TODO". Complete, runnable code.
-"""
 
+ASSET RULES:
+- If you are asked to write an `.svg` file, output valid SVG XML code.
+- If you need to display a dice, card, or simple UI element, use Unicode emojis (e.g., 🎲, 🃏) or CSS shapes instead of an image file.
+- If you need a photo (like a user avatar or background), use a placeholder URL like `https://picsum.photos/200` or `https://ui-avatars.com/api/?name=User`.
+- NEVER attempt to generate raw binary data, base64 images, or reference a local `.png` file that does not exist in the manifest.
+"""
 # ── Pure Utility Functions ──
 def strip_fences(text: str) -> str:
     """Safely removes markdown fences if the LLM wrapped the whole file in them."""
