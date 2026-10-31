@@ -1,6 +1,7 @@
 import os
 from abc import ABC,abstractmethod
 from dotenv import load_dotenv
+from functools import lru_cache
 
 load_dotenv()
 
@@ -73,7 +74,7 @@ class EchoClient(LLMClient) :
 
 
 
-
+@lru_cache(maxsize=None)  # <-- ADD THIS
 def get_llm(role : str = "default") -> LLMClient :
     role_key = role.upper()
 
