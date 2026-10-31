@@ -51,7 +51,6 @@ Rules:
 - **ASSETS RULE: If the project needs icons, logos, or simple graphics, plan for `.svg` files. NEVER plan for `.png`, `.jpg`, or other binary files because you are a text model.**
 - Return only JSON. No markdown fences. No explanation.
 """
-
 FILE_PROMPT = """
 You are a senior developer. Write ONE file for a project.
 
@@ -63,13 +62,12 @@ You will receive:
 Return ONLY the raw file contents. No markdown fences. No explanations.
 No placeholders like "..." or "# TODO". Complete, runnable code.
 
-ASSET RULES:
-- If you are asked to write an `.svg` file, output valid SVG XML code.
-- If you need to display a dice, card, or simple UI element, use Unicode emojis (e.g., 🎲, 🃏) or CSS shapes instead of an image file.
-- If you need a photo (like a user avatar or background), use a placeholder URL like `https://picsum.photos/200` or `https://ui-avatars.com/api/?name=User`.
-- NEVER attempt to generate raw binary data, base64 images, or reference a local `.png` file that does not exist in the manifest.
-"""
-# ── Pure Utility Functions ──
+CRITICAL FRAMEWORK RULES:
+- If writing Express.js routes (Node.js), ALWAYS pass a function or an async function as the callback: `router.post('/path', (req, res) => { ... })` or `router.post('/path', controllerFunction)`. NEVER pass an object to a router method.
+- If writing React components, ensure all imported components actually exist and are exported correctly.
+- If writing FastAPI routes (Python), use `@app.get("/path")` decorators correctly.
+- Ensure that all functions and variables you import actually exist in the other files listed in the manifest.
+"""# ── Pure Utility Functions ──
 def strip_fences(text: str) -> str:
     """Safely removes markdown fences if the LLM wrapped the whole file in them."""
     text = text.strip()
